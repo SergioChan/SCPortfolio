@@ -10,11 +10,11 @@
 
 #import <AVFoundation/AVFoundation.h>
 
-@interface SCScreenRecorder : NSObject <AVCaptureFileOutputDelegate, AVCaptureFileOutputRecordingDelegate>
+@interface SCScreenRecorder : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureFileOutputRecordingDelegate>
 
 @property (retain) AVCaptureSession* session;
 @property (retain) AVCaptureScreenInput* input;
-@property (retain) AVCaptureMovieFileOutput* output;
+@property (retain) AVCaptureOutput* output;
 
 // File that the recording will be saved to
 @property NSURL* file;
@@ -24,8 +24,6 @@
 - (BOOL) toggle; // Pause/Resume functionality
 - (BOOL) stop;
 
-#pragma mark AVCaptureFileOutputDelegate
-- (void)captureOutput:(AVCaptureFileOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection;
 
 #pragma mark AVCaptureFileOutputRecordingDelegate
 - (void)captureOutput:(AVCaptureFileOutput *)captureOutput didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL fromConnections:(NSArray *)connections error:(NSError *)error;

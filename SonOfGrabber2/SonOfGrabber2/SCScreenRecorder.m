@@ -8,6 +8,12 @@
 
 #import "SCScreenRecorder.h"
 
+@interface SCScreenRecorder()
+{
+    NSMutableData *elementaryStream;
+}
+@end
+
 @implementation SCScreenRecorder
 
 @synthesize session;
@@ -24,11 +30,16 @@
         self.input   = [[AVCaptureScreenInput alloc] initWithDisplayID:CGMainDisplayID()];
         self.input.capturesMouseClicks = YES;
         
-        self.output  = [[AVCaptureMovieFileOutput alloc] init];
-        [self.output setDelegate:self];
+        self.output  = [[AVCaptureVideoDataOutput alloc] init];
+        [((AVCaptureVideoDataOutput *)self.output) setVideoSettings:[NSDictionary dictionaryWithObjectsAndKeys:@(kCVPixelFormatType_32BGRA),kCVPixelBufferPixelFormatTypeKey, nil]];
+        dispatch_queue_t queue = dispatch_queue_create("com.sergio.chan", 0);
+        [(AVCaptureVideoDataOutput *)self.output setSampleBufferDelegate:self queue:queue];
+        //dispatch_release(queue);
         
         [self.session addInput:self.input];
         [self.session addOutput:self.output];
+        
+        elementaryStream = [NSMutableData data];
     }
     return self;
 }
@@ -55,30 +66,21 @@
 }
 
 - (BOOL) toggle {
-    if (self.output.recordingPaused) {
-        [self.output resumeRecording];
-        return YES;
-    }
-    
-    [self.output pauseRecording];
     return NO;
 }
 
 - (BOOL) stop {
     [self.session stopRunning];
-    [self.output  stopRecording];
     return YES;
 }
 
 
 #pragma mark AVCaptureFileOutputDelegate
 
-- (BOOL)captureOutputShouldProvideSampleAccurateRecordingStart:(AVCaptureOutput *)captureOutput {
-    return YES;
-}
-
 - (void)captureOutput:(AVCaptureFileOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection {
-    NSImage *cgImage = [[NSImage alloc] initWithData:[self videoFramebuffer:sampleBuffer]];//[self imageFromSampleBuffer:sampleBuffer];
+//    [self videoFramebuffer:sampleBuffer];
+    
+    NSImage *cgImage = [self imageFromSampleBuffer:sampleBuffer];
     
     if(self.imageView) {
         self.imageView.image = cgImage;
@@ -121,7 +123,43 @@
 
 - (NSImage *) imageFromSampleBuffer:(CMSampleBufferRef) sampleBuffer // Create a CGImageRef from sample buffer data
 {
-    CMBlockBufferRef imageBuffer = CMSampleBufferGetDataBuffer(sampleBuffer);
+    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+    CVPixelBufferLockBaseAddress(imageBuffer,0);        // Lock the image buffer
+    
+    uint8_t *baseAddress = (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);   // Get information of the image
+    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+    size_t width = CVPixelBufferGetWidth(imageBuffer);
+    size_t height = CVPixelBufferGetHeight(imageBuffer);
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    
+    CGContextRef newContext = CGBitmapContextCreate(baseAddress, width, height, 8, bytesPerRow, colorSpace, kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
+    CGImageRef newImage = CGBitmapContextCreateImage(newContext);
+    CGContextRelease(newContext);
+    
+    CGColorSpaceRelease(colorSpace);
+    CVPixelBufferUnlockBaseAddress(imageBuffer,0);
+    /* CVBufferRelease(imageBuffer); */  // do not call this!
+    
+    NSBitmapImageRep *bitmapRep = [[NSBitmapImageRep alloc] initWithCGImage:newImage];
+    
+    CGFloat imageCompression = 0.4; //between 0 and 1; 1 is maximum quality, 0 is maximum compression
+    
+    // set up the options for creating a JPEG
+    NSDictionary* jpegOptions = [NSDictionary dictionaryWithObjectsAndKeys:
+                                 [NSNumber numberWithDouble:imageCompression], NSImageCompressionFactor,
+                                 [NSNumber numberWithBool:NO], NSImageProgressive,
+                                 nil];
+    
+    NSData* jpegData = [bitmapRep representationUsingType:NSJPEGFileType properties:jpegOptions];
+    //    NSData *jpegData = imageToBuffer(sampleBuffer);
+    
+    NSLog(@"fuck length:%ld",jpegData.length);
+    
+    NSImage *image = [[NSImage alloc] initWithData:jpegData];
+    return image;
+
+    
+//    CMBlockBufferRef imageBuffer = CMSampleBufferGetDataBuffer(sampleBuffer);
     
 //    CVPixelBufferLockBaseAddress(imageBuffer,0);        // Lock the image buffer
 //    
@@ -139,50 +177,50 @@
 //    CVPixelBufferUnlockBaseAddress(imageBuffer,0);
     /* CVBufferRelease(imageBuffer); */  // do not call this!
     
-    size_t len = CMBlockBufferGetDataLength(imageBuffer);
-    char * data = NULL;
-    CMBlockBufferGetDataPointer(imageBuffer, 0, NULL, &len, &data);
-    NSData * d = [[NSData alloc] initWithBytes:data length:len];
-    
-//    size_t lengthAtOffset;
-//    size_t totalLength;
-//    char* data;
-//
-//    CFRetain(imageBuffer);
+//    size_t len = CMBlockBufferGetDataLength(imageBuffer);
+//    char * data = NULL;
+//    CMBlockBufferGetDataPointer(imageBuffer, 0, NULL, &len, &data);
+//    NSData * d = [[NSData alloc] initWithBytes:data length:len];
 //    
-//    if(CMBlockBufferGetDataPointer(imageBuffer, 0, &lengthAtOffset, &totalLength, &data ) != noErr )
-//    {
-//        NSLog( @"error!" );
-//    }
-
-    NSLog(@"length : %ld,%ld,%ld",[d length],len,strlen(data));
-    
-//    CFRelease(imageBuffer);
-
-    
-    size_t W = [self screenRect].size.width;
-    size_t H = [self screenRect].size.height;
-    
-    size_t BitsPerComponent = 8;
-    size_t BytesPerRow=((BitsPerComponent * W) / 8) * 4;
-    
-    int bytes = BytesPerRow * H;
-    
-    uint8_t *baseAddress = malloc(bytes);
-    memcpy(baseAddress,data,bytes);
-    
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    
-    CGContextRef newContext = CGBitmapContextCreate(baseAddress,W,H,BitsPerComponent,BytesPerRow,colorSpace,kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
-    CGImageRef newImage = CGBitmapContextCreateImage(newContext);
-    CGContextRelease(newContext);
-    CGColorSpaceRelease(colorSpace);
-    
-    NSImage *image = [[NSImage alloc] initWithCGImage:newImage size:NSMakeSize(W, H)];
-    
-    free(baseAddress);
-    
-    return image;
+////    size_t lengthAtOffset;
+////    size_t totalLength;
+////    char* data;
+////
+////    CFRetain(imageBuffer);
+////    
+////    if(CMBlockBufferGetDataPointer(imageBuffer, 0, &lengthAtOffset, &totalLength, &data ) != noErr )
+////    {
+////        NSLog( @"error!" );
+////    }
+//
+//    NSLog(@"length : %ld,%ld,%ld",[d length],len,strlen(data));
+//    
+////    CFRelease(imageBuffer);
+//
+//    
+//    size_t W = [self screenRect].size.width;
+//    size_t H = [self screenRect].size.height;
+//    
+//    size_t BitsPerComponent = 8;
+//    size_t BytesPerRow=((BitsPerComponent * W) / 8) * 4;
+//    
+//    int bytes = BytesPerRow * H;
+//    
+//    uint8_t *baseAddress = malloc(bytes);
+//    memcpy(baseAddress,data,bytes);
+//    
+//    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+//    
+//    CGContextRef newContext = CGBitmapContextCreate(baseAddress,W,H,BitsPerComponent,BytesPerRow,colorSpace,kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
+//    CGImageRef newImage = CGBitmapContextCreateImage(newContext);
+//    CGContextRelease(newContext);
+//    CGColorSpaceRelease(colorSpace);
+//    
+//    NSImage *image = [[NSImage alloc] initWithCGImage:newImage size:NSMakeSize(W, H)];
+//    
+//    free(baseAddress);
+//    
+//    return image;
 }
 
 - (NSRect)screenRect
@@ -195,12 +233,10 @@
     return screenRect;
 }
 
-- (NSMutableData *)videoFramebuffer:(CMSampleBufferRef)sampleBuffer
+- (void)videoFramebuffer:(CMSampleBufferRef)sampleBuffer
 {
     // In this example we will use a NSMutableData object to store the
     // elementary stream.
-    NSMutableData *elementaryStream = [NSMutableData data];
-    
     
     // Find out if the sample buffer contains an I-Frame.
     // If so we will write the SPS and PPS NAL units to the elementary stream.
@@ -224,6 +260,11 @@
     // Write the SPS and PPS NAL units to the elementary stream before every I-Frame
     if (isIFrame) {
         CMFormatDescriptionRef description = CMSampleBufferGetFormatDescription(sampleBuffer);
+        NSImage *cgImage = [[NSImage alloc] initWithData:elementaryStream];
+        if(self.imageView) {
+            self.imageView.image = cgImage;
+        }
+        elementaryStream = [NSMutableData data];
         
         // Find out how many parameter sets there are
         size_t numberOfParameterSets;
@@ -276,7 +317,6 @@
         // Move to the next NAL unit in the block buffer
         bufferOffset += AVCCHeaderLength + NALUnitLength;
     }
-    return elementaryStream;
 }
 
 @end

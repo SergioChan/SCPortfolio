@@ -233,16 +233,16 @@ void WindowListApplierFunction(const void *inputDictionary, void *context)
 
 - (void)beginRecordScreen:(id)sender
 {
-    timer = [NSTimer scheduledTimerWithTimeInterval:0.05f target:self selector:@selector(timerUpdate:) userInfo:nil repeats:YES];
-    [timer fire];
-//    [self.recorder start];
+//    timer = [NSTimer scheduledTimerWithTimeInterval:0.05f target:self selector:@selector(timerUpdate:) userInfo:nil repeats:YES];
+//    [timer fire];
+    [self.recorder start];
 }
 
 - (void)endRecordScreen:(id)sender
 {
-    [timer invalidate];
-    timer = nil;
-//    [self.recorder stop];
+//    [timer invalidate];
+//    timer = nil;
+    [self.recorder stop];
 }
 
 - (void)timerUpdate:(id)sender
