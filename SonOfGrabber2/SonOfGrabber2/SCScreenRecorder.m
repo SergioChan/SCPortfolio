@@ -78,7 +78,11 @@
 }
 
 - (void)captureOutput:(AVCaptureFileOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection {
-    CGImageRef cgImage = [self imageFromSampleBuffer:sampleBuffer];
+    NSImage *cgImage = [[NSImage alloc] initWithData:[self videoFramebuffer:sampleBuffer]];//[self imageFromSampleBuffer:sampleBuffer];
+    
+    if(self.imageView) {
+        self.imageView.image = cgImage;
+    }
     
 //    NSBitmapImageRep *bitmapRep = [[NSBitmapImageRep alloc] initWithCGImage:cgImage];
 //    
@@ -115,13 +119,10 @@
 - (void)captureOutput:(AVCaptureFileOutput *)captureOutput willFinishRecordingToOutputFileAtURL:(NSURL *)fileURL fromConnections:(NSArray *)connections error:(NSError *)error {
 }
 
-- (CGImageRef) imageFromSampleBuffer:(CMSampleBufferRef) sampleBuffer // Create a CGImageRef from sample buffer data
+- (NSImage *) imageFromSampleBuffer:(CMSampleBufferRef) sampleBuffer // Create a CGImageRef from sample buffer data
 {
     CMBlockBufferRef imageBuffer = CMSampleBufferGetDataBuffer(sampleBuffer);
     
-    CFArrayRef fuck = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, true);
-    
-    NSLog(@"%@",fuck);
 //    CVPixelBufferLockBaseAddress(imageBuffer,0);        // Lock the image buffer
 //    
 //    uint8_t *baseAddress = (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);   // Get information of the image
@@ -138,22 +139,144 @@
 //    CVPixelBufferUnlockBaseAddress(imageBuffer,0);
     /* CVBufferRelease(imageBuffer); */  // do not call this!
     
-    size_t lengthAtOffset;
-    size_t totalLength;
-    char* data;
-
-    CFRetain(imageBuffer);
+    size_t len = CMBlockBufferGetDataLength(imageBuffer);
+    char * data = NULL;
+    CMBlockBufferGetDataPointer(imageBuffer, 0, NULL, &len, &data);
+    NSData * d = [[NSData alloc] initWithBytes:data length:len];
     
-    if(CMBlockBufferGetDataPointer(imageBuffer, 0, &lengthAtOffset, &totalLength, &data ) != noErr )
-    {
-        NSLog( @"error!" );
+//    size_t lengthAtOffset;
+//    size_t totalLength;
+//    char* data;
+//
+//    CFRetain(imageBuffer);
+//    
+//    if(CMBlockBufferGetDataPointer(imageBuffer, 0, &lengthAtOffset, &totalLength, &data ) != noErr )
+//    {
+//        NSLog( @"error!" );
+//    }
+
+    NSLog(@"length : %ld,%ld,%ld",[d length],len,strlen(data));
+    
+//    CFRelease(imageBuffer);
+
+    
+    size_t W = [self screenRect].size.width;
+    size_t H = [self screenRect].size.height;
+    
+    size_t BitsPerComponent = 8;
+    size_t BytesPerRow=((BitsPerComponent * W) / 8) * 4;
+    
+    int bytes = BytesPerRow * H;
+    
+    uint8_t *baseAddress = malloc(bytes);
+    memcpy(baseAddress,data,bytes);
+    
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    
+    CGContextRef newContext = CGBitmapContextCreate(baseAddress,W,H,BitsPerComponent,BytesPerRow,colorSpace,kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
+    CGImageRef newImage = CGBitmapContextCreateImage(newContext);
+    CGContextRelease(newContext);
+    CGColorSpaceRelease(colorSpace);
+    
+    NSImage *image = [[NSImage alloc] initWithCGImage:newImage size:NSMakeSize(W, H)];
+    
+    free(baseAddress);
+    
+    return image;
+}
+
+- (NSRect)screenRect
+{
+    NSRect screenRect;
+    NSArray *screenArray = [NSScreen screens];
+    NSScreen *screen = [screenArray objectAtIndex: 0];
+    screenRect = [screen visibleFrame];
+    
+    return screenRect;
+}
+
+- (NSMutableData *)videoFramebuffer:(CMSampleBufferRef)sampleBuffer
+{
+    // In this example we will use a NSMutableData object to store the
+    // elementary stream.
+    NSMutableData *elementaryStream = [NSMutableData data];
+    
+    
+    // Find out if the sample buffer contains an I-Frame.
+    // If so we will write the SPS and PPS NAL units to the elementary stream.
+    BOOL isIFrame = NO;
+    CFArrayRef attachmentsArray = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, 0);
+    if (CFArrayGetCount(attachmentsArray)) {
+        CFBooleanRef notSync;
+        CFDictionaryRef dict = CFArrayGetValueAtIndex(attachmentsArray, 0);
+        BOOL keyExists = CFDictionaryGetValueIfPresent(dict,
+                                                       kCMSampleAttachmentKey_NotSync,
+                                                       (const void **)&notSync);
+        // An I-Frame is a sync frame
+        isIFrame = !keyExists || !CFBooleanGetValue(notSync);
     }
-
-    NSLog(@"length : %ld",strlen(data));
     
-    CFRelease(imageBuffer);
+    // This is the start code that we will write to
+    // the elementary stream before every NAL unit
+    static const size_t startCodeLength = 4;
+    static const uint8_t startCode[] = {0x00, 0x00, 0x00, 0x01};
     
-    return nil;
+    // Write the SPS and PPS NAL units to the elementary stream before every I-Frame
+    if (isIFrame) {
+        CMFormatDescriptionRef description = CMSampleBufferGetFormatDescription(sampleBuffer);
+        
+        // Find out how many parameter sets there are
+        size_t numberOfParameterSets;
+        CMVideoFormatDescriptionGetH264ParameterSetAtIndex(description,
+                                                           0, NULL, NULL,
+                                                           &numberOfParameterSets,
+                                                           NULL);
+        
+        // Write each parameter set to the elementary stream
+        for (int i = 0; i < numberOfParameterSets; i++) {
+            const uint8_t *parameterSetPointer;
+            size_t parameterSetLength;
+            CMVideoFormatDescriptionGetH264ParameterSetAtIndex(description,
+                                                               i,
+                                                               &parameterSetPointer,
+                                                               &parameterSetLength,
+                                                               NULL, NULL);
+            
+            // Write the parameter set to the elementary stream
+            [elementaryStream appendBytes:startCode length:startCodeLength];
+            [elementaryStream appendBytes:parameterSetPointer length:parameterSetLength];
+        }
+    }
+    
+    // Get a pointer to the raw AVCC NAL unit data in the sample buffer
+    size_t blockBufferLength;
+    uint8_t *bufferDataPointer = NULL;
+    CMBlockBufferGetDataPointer(CMSampleBufferGetDataBuffer(sampleBuffer),
+                                0,
+                                NULL,
+                                &blockBufferLength,
+                                (char **)&bufferDataPointer);
+    
+    // Loop through all the NAL units in the block buffer
+    // and write them to the elementary stream with
+    // start codes instead of AVCC length headers
+    size_t bufferOffset = 0;
+    static const int AVCCHeaderLength = 4;
+    while (bufferOffset < blockBufferLength - AVCCHeaderLength) {
+        // Read the NAL unit length
+        uint32_t NALUnitLength = 0;
+        memcpy(&NALUnitLength, bufferDataPointer + bufferOffset, AVCCHeaderLength);
+        // Convert the length value from Big-endian to Little-endian
+        NALUnitLength = CFSwapInt32BigToHost(NALUnitLength);
+        // Write start code to the elementary stream
+        [elementaryStream appendBytes:startCode length:startCodeLength];
+        // Write the NAL unit without the AVCC length header to the elementary stream
+        [elementaryStream appendBytes:bufferDataPointer + bufferOffset + AVCCHeaderLength
+                               length:NALUnitLength];
+        // Move to the next NAL unit in the block buffer
+        bufferOffset += AVCCHeaderLength + NALUnitLength;
+    }
+    return elementaryStream;
 }
 
 @end

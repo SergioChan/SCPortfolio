@@ -83,21 +83,21 @@ inline uint32_t ChangeBits(uint32_t currentBits, uint32_t flagsToChange, BOOL se
     if(cgImage != NULL)
     {
         // Create a bitmap rep from the image...
-        NSBitmapImageRep *bitmapRep = [[NSBitmapImageRep alloc] initWithCGImage:cgImage];
+//        NSBitmapImageRep *bitmapRep = [[NSBitmapImageRep alloc] initWithCGImage:cgImage];
+//        
+//        CGFloat imageCompression = 0.4; //between 0 and 1; 1 is maximum quality, 0 is maximum compression
+//        
+//        // set up the options for creating a JPEG
+//        NSDictionary* jpegOptions = [NSDictionary dictionaryWithObjectsAndKeys:
+//                                     [NSNumber numberWithDouble:imageCompression], NSImageCompressionFactor,
+//                                     [NSNumber numberWithBool:NO], NSImageProgressive,
+//                                     nil];
+//        
+//        // get the JPEG encoded data
+//        NSData* jpegData = [bitmapRep representationUsingType:NSJPEGFileType properties:jpegOptions];
+//        //write it to disk
         
-        CGFloat imageCompression = 0.4; //between 0 and 1; 1 is maximum quality, 0 is maximum compression
-        
-        // set up the options for creating a JPEG
-        NSDictionary* jpegOptions = [NSDictionary dictionaryWithObjectsAndKeys:
-                                     [NSNumber numberWithDouble:imageCompression], NSImageCompressionFactor,
-                                     [NSNumber numberWithBool:NO], NSImageProgressive,
-                                     nil];
-        
-        // get the JPEG encoded data
-        NSData* jpegData = [bitmapRep representationUsingType:NSJPEGFileType properties:jpegOptions];
-        //write it to disk
-        
-        NSImage *image = [[NSImage alloc] initWithData:jpegData];
+        NSImage *image = [[NSImage alloc]initWithCGImage:cgImage size:NSMakeSize([self screenRect].size.width, [self screenRect].size.height)];
         
         // Set the output view to the new NSImage.
         return image;
@@ -182,8 +182,8 @@ void WindowListApplierFunction(const void *inputDictionary, void *context)
         NSImage *image = [self setOutputImage:screenShot];
         dispatch_async(dispatch_get_main_queue(), ^{
             self.imageView.image = image;
-            NSData *imageData = [image TIFFRepresentationUsingCompression:NSTIFFCompressionJPEG factor:0.5f];
-            NSLog(@"size : %ld",imageData.length);
+//            NSData *imageData = [image TIFFRepresentationUsingCompression:NSTIFFCompressionJPEG factor:0.5f];
+//            NSLog(@"size : %ld",imageData.length);
         });
         CGImageRelease(screenShot);
     });
@@ -204,6 +204,7 @@ void WindowListApplierFunction(const void *inputDictionary, void *context)
     
     self.statusItem.menu = menu;
     self.recorder = [[SCScreenRecorder alloc] init];
+    self.recorder.imageView = self.imageView;
     
 //    self.popOver = [[NSPopover alloc] init];
 //    self.contentViewController = [[TestViewController alloc] initWithNibName:@"TestViewController" bundle:nil];
@@ -232,16 +233,16 @@ void WindowListApplierFunction(const void *inputDictionary, void *context)
 
 - (void)beginRecordScreen:(id)sender
 {
-//    timer = [NSTimer scheduledTimerWithTimeInterval:0.02f target:self selector:@selector(timerUpdate:) userInfo:nil repeats:YES];
-//    [timer fire];
-    [self.recorder start];
+    timer = [NSTimer scheduledTimerWithTimeInterval:0.05f target:self selector:@selector(timerUpdate:) userInfo:nil repeats:YES];
+    [timer fire];
+//    [self.recorder start];
 }
 
 - (void)endRecordScreen:(id)sender
 {
-//    [timer invalidate];
-//    timer = nil;
-    [self.recorder stop];
+    [timer invalidate];
+    timer = nil;
+//    [self.recorder stop];
 }
 
 - (void)timerUpdate:(id)sender

@@ -18,6 +18,7 @@
 
 // File that the recording will be saved to
 @property NSURL* file;
+@property (weak) NSImageView *imageView;
 
 - (BOOL) start;
 - (BOOL) toggle; // Pause/Resume functionality
