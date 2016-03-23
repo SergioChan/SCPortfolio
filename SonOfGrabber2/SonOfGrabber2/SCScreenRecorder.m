@@ -29,6 +29,9 @@
         
         self.input   = [[AVCaptureScreenInput alloc] initWithDisplayID:CGMainDisplayID()];
         self.input.capturesMouseClicks = YES;
+        self.input.minFrameDuration = CMTimeMake(1, 60);
+        self.input.scaleFactor = 0.5f;
+        self.input.cropRect = [self screenRect];
         
         self.output  = [[AVCaptureVideoDataOutput alloc] init];
         [((AVCaptureVideoDataOutput *)self.output) setVideoSettings:[NSDictionary dictionaryWithObjectsAndKeys:@(kCVPixelFormatType_32BGRA),kCVPixelBufferPixelFormatTypeKey, nil]];
@@ -80,11 +83,8 @@
 - (void)captureOutput:(AVCaptureFileOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection {
 //    [self videoFramebuffer:sampleBuffer];
     
-    NSImage *cgImage = [self imageFromSampleBuffer:sampleBuffer];
-    
-    if(self.imageView) {
-        self.imageView.image = cgImage;
-    }
+    [self imageFromSampleBuffer:sampleBuffer];
+
     
 //    NSBitmapImageRep *bitmapRep = [[NSBitmapImageRep alloc] initWithCGImage:cgImage];
 //    
@@ -121,43 +121,60 @@
 - (void)captureOutput:(AVCaptureFileOutput *)captureOutput willFinishRecordingToOutputFileAtURL:(NSURL *)fileURL fromConnections:(NSArray *)connections error:(NSError *)error {
 }
 
-- (NSImage *) imageFromSampleBuffer:(CMSampleBufferRef) sampleBuffer // Create a CGImageRef from sample buffer data
+- (void) imageFromSampleBuffer:(CMSampleBufferRef) sampleBuffer // Create a CGImageRef from sample buffer data
 {
-    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-    CVPixelBufferLockBaseAddress(imageBuffer,0);        // Lock the image buffer
+//    @autoreleasepool
+//    {
+    @try {
+        CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+        CVPixelBufferLockBaseAddress(imageBuffer,0);        // Lock the image buffer
+        
+        uint8_t *baseAddress = (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);   // Get information of the image
+        size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+        size_t width = CVPixelBufferGetWidth(imageBuffer);
+        size_t height = CVPixelBufferGetHeight(imageBuffer);
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+        
+        CGContextRef newContext = CGBitmapContextCreate(baseAddress, width, height, 8, bytesPerRow, colorSpace, kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
+        CGImageRef newImage = CGBitmapContextCreateImage(newContext);
+        CGContextRelease(newContext);
+        
+        CGColorSpaceRelease(colorSpace);
+        CVPixelBufferUnlockBaseAddress(imageBuffer,0);
+        
+        NSImage *image = [[NSImage alloc] initWithCGImage:newImage size:[self screenRect].size];
+        CGImageRelease(newImage);
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if(self.imageView) {
+                self.imageView.image = image;
+            }
+        });
+    }
+    @catch (NSException *exception) {
+        NSLog(@"Error at %@",exception.debugDescription);
+    }
+    @finally {
+        return;
+    }
     
-    uint8_t *baseAddress = (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);   // Get information of the image
-    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
-    size_t width = CVPixelBufferGetWidth(imageBuffer);
-    size_t height = CVPixelBufferGetHeight(imageBuffer);
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+        /* CVBufferRelease(imageBuffer); */  // do not call this!
+        
+//        NSBitmapImageRep *bitmapRep = [[NSBitmapImageRep alloc] initWithCGImage:newImage];
+//        CGFloat imageCompression = 0.4; //between 0 and 1; 1 is maximum quality, 0 is maximum compression
+//        
+//        // set up the options for creating a JPEG
+//        NSDictionary* jpegOptions = [NSDictionary dictionaryWithObjectsAndKeys:
+//                                     [NSNumber numberWithDouble:imageCompression], NSImageCompressionFactor,
+//                                     [NSNumber numberWithBool:NO], NSImageProgressive,
+//                                     nil];
+//        
+//        NSData* jpegData = [bitmapRep representationUsingType:NSJPEGFileType properties:jpegOptions];
+//        //    NSData *jpegData = imageToBuffer(sampleBuffer);
+//        
+//        NSLog(@"fuck length:%ld",jpegData.length);
     
-    CGContextRef newContext = CGBitmapContextCreate(baseAddress, width, height, 8, bytesPerRow, colorSpace, kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
-    CGImageRef newImage = CGBitmapContextCreateImage(newContext);
-    CGContextRelease(newContext);
-    
-    CGColorSpaceRelease(colorSpace);
-    CVPixelBufferUnlockBaseAddress(imageBuffer,0);
-    /* CVBufferRelease(imageBuffer); */  // do not call this!
-    
-    NSBitmapImageRep *bitmapRep = [[NSBitmapImageRep alloc] initWithCGImage:newImage];
-    
-    CGFloat imageCompression = 0.4; //between 0 and 1; 1 is maximum quality, 0 is maximum compression
-    
-    // set up the options for creating a JPEG
-    NSDictionary* jpegOptions = [NSDictionary dictionaryWithObjectsAndKeys:
-                                 [NSNumber numberWithDouble:imageCompression], NSImageCompressionFactor,
-                                 [NSNumber numberWithBool:NO], NSImageProgressive,
-                                 nil];
-    
-    NSData* jpegData = [bitmapRep representationUsingType:NSJPEGFileType properties:jpegOptions];
-    //    NSData *jpegData = imageToBuffer(sampleBuffer);
-    
-    NSLog(@"fuck length:%ld",jpegData.length);
-    
-    NSImage *image = [[NSImage alloc] initWithData:jpegData];
-    return image;
-
+//    }
     
 //    CMBlockBufferRef imageBuffer = CMSampleBufferGetDataBuffer(sampleBuffer);
     

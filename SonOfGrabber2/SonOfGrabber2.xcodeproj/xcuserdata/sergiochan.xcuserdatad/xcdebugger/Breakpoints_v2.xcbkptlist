@@ -48,7 +48,7 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.OpenGLErrorBreakpoint">
          <BreakpointContent
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             breakpointStackSelectionBehavior = "1"
@@ -104,11 +104,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "SonOfGrabber2/SCScreenRecorder.m"
-            timestampString = "480414884.121169"
+            timestampString = "480416554.973004"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "164"
-            endingLineNumber = "164"
+            startingLineNumber = "181"
+            endingLineNumber = "181"
             landmarkName = "-imageFromSampleBuffer:"
             landmarkType = "5">
          </BreakpointContent>
@@ -120,11 +120,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "SonOfGrabber2/SCScreenRecorder.m"
-            timestampString = "480414884.121169"
+            timestampString = "480416554.973004"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "163"
-            endingLineNumber = "163"
+            startingLineNumber = "180"
+            endingLineNumber = "180"
             landmarkName = "-imageFromSampleBuffer:"
             landmarkType = "5">
          </BreakpointContent>
@@ -136,11 +136,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "SonOfGrabber2/SCScreenRecorder.m"
-            timestampString = "480414884.121169"
+            timestampString = "480416554.973004"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "223"
-            endingLineNumber = "223"
+            startingLineNumber = "240"
+            endingLineNumber = "240"
             landmarkName = "-imageFromSampleBuffer:"
             landmarkType = "5">
          </BreakpointContent>
@@ -152,11 +152,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "SonOfGrabber2/SCScreenRecorder.m"
-            timestampString = "480414884.121169"
+            timestampString = "480416554.973004"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "307"
-            endingLineNumber = "307"
+            startingLineNumber = "324"
+            endingLineNumber = "324"
             landmarkName = "-videoFramebuffer:"
             landmarkType = "5">
          </BreakpointContent>
@@ -168,11 +168,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "SonOfGrabber2/SCScreenRecorder.m"
-            timestampString = "480414884.121169"
+            timestampString = "480416554.973004"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "313"
-            endingLineNumber = "313"
+            startingLineNumber = "330"
+            endingLineNumber = "330"
             landmarkName = "-videoFramebuffer:"
             landmarkType = "5">
          </BreakpointContent>
@@ -184,11 +184,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "SonOfGrabber2/SCScreenRecorder.m"
-            timestampString = "480414884.121169"
+            timestampString = "480416554.973004"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "318"
-            endingLineNumber = "318"
+            startingLineNumber = "335"
+            endingLineNumber = "335"
             landmarkName = "-videoFramebuffer:"
             landmarkType = "5">
          </BreakpointContent>
@@ -200,11 +200,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "SonOfGrabber2/SCScreenRecorder.m"
-            timestampString = "480414884.121169"
+            timestampString = "480416554.973004"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "262"
-            endingLineNumber = "262"
+            startingLineNumber = "279"
+            endingLineNumber = "279"
             landmarkName = "-videoFramebuffer:"
             landmarkType = "5">
          </BreakpointContent>
@@ -216,11 +216,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "SonOfGrabber2/SCScreenRecorder.m"
-            timestampString = "480414884.121169"
+            timestampString = "480416554.973004"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "264"
-            endingLineNumber = "264"
+            startingLineNumber = "281"
+            endingLineNumber = "281"
             landmarkName = "-videoFramebuffer:"
             landmarkType = "5">
          </BreakpointContent>
@@ -232,12 +232,12 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "SonOfGrabber2/SCScreenRecorder.m"
-            timestampString = "480414880.452633"
+            timestampString = "480416554.973004"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "85"
-            endingLineNumber = "85"
-            landmarkName = "-captureOutput:didOutputSampleBuffer:fromConnection:"
+            startingLineNumber = "155"
+            endingLineNumber = "155"
+            landmarkName = "-imageFromSampleBuffer:"
             landmarkType = "5">
          </BreakpointContent>
       </BreakpointProxy>
